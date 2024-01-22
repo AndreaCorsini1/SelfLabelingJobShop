@@ -1,8 +1,14 @@
 # LabelingJSP
 
-Code for IJCAI 2024: Self-Labeling the Job Shop Scheduling Problem (JSP)
+Self-Labeling the Job Shop Scheduling Problem.
 
-> We will provide additional configuration and setup information.
+In this work, we propose a Self-Supervised training strategy specifically designed for combinatorial problems.
+Inspired by Semi- and Self-Supervised learning, we show that it is possible to easily train generative models by sampling multiple solutions and using the best one according to the problem objective as a pseudo-label.
+In this way, we iteratively improve the model generation capability by relying only on its self-supervision, completely removing the need for optimality information.
+
+We prove the effectiveness of this Self-Labeling strategy on the Job Shop Scheduling (JSP), a complex combinatorial problem that is receiving much attention from the Reinforcement Learning community.
+We propose a generative model based on the well-known Pointer Network and train it with our strategy.
+Experiments on two popular benchmarks demonstrate the potential of this approach as the resulting models outperform constructive heuristics and current state-of-the-art Reinforcement Learning proposals.
 
 ## Project Structure
 

@@ -304,7 +304,6 @@ def sample_training(ins: dict,
     trajs = -torch.ones((bs, num_ops), dtype=torch.long, device=device)
     ptrs = -torch.ones((bs, num_ops, num_j), dtype=torch.float32,
                        device=device)
-    _idx = torch.arange(0, bs, device=device)
     #
     jsp = JobShopStates(device)
     state, mask = jsp.init_state(ins, bs)
@@ -324,8 +323,8 @@ def sample_training(ins: dict,
         jobs = scores.multinomial(1, replacement=False).squeeze(1)
 
         # Add the node and pointers to the solution
-        trajs[_idx, i] = jobs
-        ptrs[_idx, i] = logits
+        trajs[:, i] = jobs
+        ptrs[:, i] = logits
         #
         state, mask, _ = jsp.update(jobs)
 

@@ -6,6 +6,7 @@ from PointerNet import GATEncoder, MHADecoder
 from argparse import ArgumentParser
 from inout import load_dataset
 from tqdm import tqdm
+from utils import *
 
 # Training device
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -31,24 +32,21 @@ def validation(encoder: torch.nn.Module,
         torch.manual_seed(seed)
     encoder.eval()
     decoder.eval()
-    gaps, shape_gap = [], {}
+    gaps = ObjMeter()
+
+    # For each instance in the benchmark
     for ins in val_set:
+        # Sample multiple solutions
         s, mss = stg.sampling(ins, encoder, decoder, bs=num_sols, device=device)
-        #
-        ms_min = mss.min().item()
-        min_gap = (ms_min / ins['makespan'] - 1) * 100
-        gaps.append(min_gap)
-        shape = f"{ins['j']}x{ins['m']}"
-        if shape in shape_gap:
-            shape_gap[shape].append(min_gap)
-        else:
-            shape_gap[shape] = [min_gap]
-    #
-    avg_gap = sum(gaps) / len(gaps)
+
+        # Log info
+        min_gap = (mss.min().item() / ins['makespan'] - 1) * 100
+        gaps.update(ins, min_gap)
+
+    # Print stats
+    avg_gap = gaps.avg
     print(f"\t\tVal set: AVG Gap={avg_gap:.3f}")
-    for shape, g in shape_gap.items():
-        print(f"\t\t\t{shape:6}: AVG Gap={sum(g)/len(g):2.3f} "
-              f"[{min(g):.3f}, {max(g):.3f}]")
+    print(gaps)
     return avg_gap
 
 
@@ -85,53 +83,46 @@ def train(encoder: torch.nn.Module,
     c = torch.nn.CrossEntropyLoss(reduction='mean')
     print("Training ...")
     for epoch in range(epochs):
-        encoder.train()
-        decoder.train()
-        info = {}
+        losses = AverageMeter()
+        gaps = ObjMeter()
         random.shuffle(indices)
         cnt = 0
-        #
+        # For each instance in the training set
         for idx, i in tqdm(enumerate(indices)):
             ins = train_set[i]
             cnt += 1
-            # Training step
+            # Training step (sample solutions)
             trajs, logits, mss = stg.sample_training(ins, encoder, decoder,
                                                      bs=num_sols, device=device)
+
+            # Compute loss
             argmin = mss.argmin()
             loss = c(logits[argmin], trajs[argmin])
+
             # log info
-            shape = ins['shape']
-            if shape in info:
-                info[shape][0].append(loss.detach())
-                info[shape][1].append((mss[argmin] / ins['makespan'] - 1) * 100)
-            else:
-                info[shape] = [[loss.detach()],
-                               [(mss[argmin] / ins['makespan'] - 1) * 100]]
+            losses.update(loss.item())
+            gaps.update(ins, (mss.min().item() / ins['makespan'] - 1) * 100)
+
+            # Virtual batching for managing without masking different sizes
             loss *= frac
             loss.backward()
-            # Virtual batching for managing without masking different sizes
             if cnt == virtual_bs or idx + 1 == size:
                 opti.step()
                 opti.zero_grad()
                 cnt = 0
+
             # Probe model
             if idx > 0 and idx % 2500 == 0:
                 val_gap = validation(encoder, decoder, val_set, num_sols=128)
                 if _best is None or val_gap < _best:
                     _best = val_gap
                     torch.save((encoder, decoder), model_path)
-                encoder.train()
-                decoder.train()
 
         # ...log the running loss
-        avg_loss = sum([sum(l) for l, _ in info.values()]) / len(train_set)
-        avg_gap = sum([sum(g) for _, g in info.values()]) / len(train_set)
-        print(f'\tEPOCH {epoch:02}: avg loss={avg_loss:.4f}')
+        avg_gap = gaps.avg
+        print(f'\tEPOCH {epoch:02}: avg loss={losses.avg:.4f}')
         print(f"\t\tTrain: AVG Gap={avg_gap:2.3f}")
-        for shape, (l, g) in info.items():
-            print(f"\t\t\t{shape:5}: AVG Gap={sum(g)/len(g):2.3f} "
-                  f"[{min(g):.3f}, {max(g):.3f}]")
-            print(f"\t\t\t{shape:5}: AVG loss={sum(l)/len(l):.3f}")
+        print(gaps)
 
         # Test model and save
         val_gap = validation(encoder, decoder, val_set, num_sols=128)
@@ -189,9 +180,7 @@ if __name__ == '__main__':
     if _args.model_path is not None:
         print(f"Loading {_args.model_path}.")
         m_path = f"{_args.model_path}"
-        _encw, _decw = torch.load(_args.model_path, map_location=device)
-        _enc.load_state_dict(_encw)
-        _dec.load_state_dict(_decw)
+        _enc, _dec = torch.load(_args.model_path, map_location=device)
     else:
         m_path = f"checkpoints/PointerNet-B{_args.beta}.pt"
     print(_enc)

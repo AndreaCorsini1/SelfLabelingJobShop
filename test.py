@@ -6,6 +6,7 @@ from tqdm import tqdm
 from sampling import sampling, greedy
 from inout import load_dataset
 from time import time
+from utils import ObjMeter
 
 # Training device
 dev = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -32,7 +33,9 @@ def validation(encoder: torch.nn.Module,
         torch.manual_seed(seed)
     encoder.eval()
     decoder.eval()
-    results, gaps, shape_gap = [], [], {}
+    gaps = ObjMeter()
+    results = []
+
     for ins in tqdm(val_set):
         st = time()
         if beta > 1:
@@ -40,9 +43,11 @@ def validation(encoder: torch.nn.Module,
         else:
             s, mss = greedy(ins, encoder, decoder, device=dev)
         exe_time = time() - st
+
         #
         _gaps = (mss / ins['makespan'] - 1) * 100
         min_gap = _gaps.min().item()
+        gaps.update(ins, min_gap)
         results.append({'NAME': ins['name'],
                         'UB': ins['makespan'],
                         'MS': mss.min().item(),
@@ -52,20 +57,11 @@ def validation(encoder: torch.nn.Module,
                         'GAP-AVG': _gaps.mean().item(),
                         'GAP-STD': _gaps.std().item(),
                         'TIME': exe_time})
-        #
-        gaps.append(min_gap)
-        shape = f"{ins['j']}x{ins['m']}"
-        if shape in shape_gap:
-            shape_gap[shape].append(min_gap)
-        else:
-            shape_gap[shape] = [min_gap]
+
     #
-    avg_gap = sum(gaps) / len(gaps)
-    print(f"\t\t{name} set: AVG Gap={avg_gap:.3f}")
-    for shape, g in shape_gap.items():
-        print(f"\t\t\t{shape:6}: AVG Gap={sum(g)/len(g):.3f} "
-              f"[{min(g):.3f}, {max(g):.3f}]")
-    return avg_gap, results
+    print(f"\t\t{name} set: AVG Gap={gaps.avg:2.3f}")
+    print(gaps)
+    return results
 
 
 #
@@ -94,10 +90,10 @@ if __name__ == '__main__':
     #
     for b_name in _args.benchmarks:
         d = load_dataset(f'./benchmarks/{b_name}', device=dev)
-        _, res = validation(enc_, dec_, d,
-                            beta=_args.beta,
-                            name=f'{b_name} benchmark',
-                            seed=_args.seed)
+        res = validation(enc_, dec_, d,
+                         beta=_args.beta,
+                         name=f'{b_name} benchmark',
+                         seed=_args.seed)
 
         # Save results
         if not os.path.exists('./output/'):

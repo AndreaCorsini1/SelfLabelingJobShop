@@ -40,11 +40,14 @@ def read_basic(f_path: str, sep: str = ' ', device: str = 'cpu'):
                 device=device
             )
 
-        # Load the solution
-        ms = instance[:, 1::2].sum()
-        _ms = next(f)
-        if _ms != '':
-            ms = float(_ms)
+        # Load the makespan of a reference solution, if any
+        ms = 1.
+        try:
+            _ms = next(f)
+            if _ms != '':
+                ms = float(_ms)
+        except StopIteration:
+            pass
     return name, n, m, instance, ms
 
 

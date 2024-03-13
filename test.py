@@ -65,38 +65,41 @@ def validation(encoder: torch.nn.Module,
 
 
 #
-parser = argparse.ArgumentParser(description='Test Pointer JSP')
+parser = argparse.ArgumentParser(description='Test Pointer Net')
 parser.add_argument("-model_path", type=str, required=False,
-                    default="./checkpoints/PointerNet-B256f.pt",
+                    default="./checkpoints/PtrNet-B128.pt",
                     help="Path to the model.")
 parser.add_argument("-benchmarks", type=list, required=False,
                     default=['DMU', 'TA'],
-                    help="Output size of the encoder.")
-parser.add_argument("-beta", type=int, default=128, required=False,
-                    help="Number of sampled solutions.")
+                    help="Name of the benchmark to use for testing.")
+parser.add_argument("-beta", type=int, default=1, required=False,
+                    help="Number of sampled solutions for each instance.")
 parser.add_argument("-seed", type=int, default=12345,
                     required=False, help="Random seed.")
 
 
 if __name__ == '__main__':
+    from PointerNet import GATEncoder
     print(f"Testing on {dev}...")
-    _args = parser.parse_args()
+    args = parser.parse_args()
 
     # Load the model
-    print(f"Loading {_args.model_path}")
-    enc_, dec_ = torch.load(_args.model_path, map_location=dev)
-    model_name = _args.model_path.rsplit('/', 1)[1].split('.', 1)[0]
+    print(f"Loading {args.model_path}")
+    enc_w, dec_ = torch.load(args.model_path, map_location=dev)
+    enc_ = GATEncoder(15)   # Load weights to avoid bug with new PyG versions
+    enc_.load_state_dict(enc_w)
+    model_name = args.model_path.rsplit('/', 1)[1].split('.', 1)[0]
 
     #
-    for b_name in _args.benchmarks:
+    for b_name in args.benchmarks:
         d = load_dataset(f'./benchmarks/{b_name}', device=dev)
         res = validation(enc_, dec_, d,
-                         beta=_args.beta,
+                         beta=args.beta,
                          name=f'{b_name} benchmark',
-                         seed=_args.seed)
+                         seed=args.seed)
 
         # Save results
         if not os.path.exists('./output/'):
             os.makedirs('./output/')
-        out_file = f'output/{model_name}_{b_name}-B{_args.beta}_{_args.seed}.csv'
+        out_file = f'output/{model_name}_{b_name}-B{args.beta}_{args.seed}.csv'
         pd.DataFrame(res).to_csv(out_file, index=False, sep=',')

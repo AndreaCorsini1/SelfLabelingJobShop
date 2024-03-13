@@ -1,6 +1,4 @@
-# LabelingJSP
-
-Self-Labeling the Job Shop Scheduling Problem.
+# Self-Labeling the Job Shop Scheduling Problem
 
 We propose a Self-Supervised training strategy specifically designed for combinatorial problems.
 Inspired by Semi- and Self-Supervised learning, we show that it is possible to easily train generative models by sampling multiple solutions and using the best one according to the problem objective as a pseudo-label.
@@ -28,8 +26,21 @@ The JSP instances are divided into two folders:
 ## Requirements
 
 - PyTorch 13.1
-- PyTorch Geometric 2.2
+- PyTorch Geometric 2.2 (check the PyG site for installation instructions)
 - Tdqm
 - Gurobipy
 - Pandas
 - Gym (necessary for running L2D) 
+
+It should also work with newer versions of PyTorch and PyTorch Geometric.  
+
+
+## Cite as:
+```
+@inproceedings{SelfJSP,
+    title = {Self-Labeling the Job Shop Scheduling Problem},
+    author = {Corsini, Andrea and Porrello, Angelo and Calderara, Simone and Dell'Amico, Mauro},
+    year={2024},
+    publisher={Arxiv},
+}
+```

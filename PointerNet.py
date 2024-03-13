@@ -101,10 +101,10 @@ class MHADecoder(torch.nn.Module):
         Forward pass.
 
         Args:
-            embed_x: (batch size, num jobs, num features)
-            state: (batch size, num jobs, num features)
+            embed_x: (batch size B, num jobs N, num features F)
+            state: (batch size B, num jobs N, num features F)
         Return:
-            Probability of each job.
+            Probability of each job, with shape (batch size B, num jobs N)
         """
         # Make job states
         x1 = self.linear1(state)

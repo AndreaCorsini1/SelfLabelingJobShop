@@ -23,6 +23,39 @@ The JSP instances are divided into two folders:
 - dataset5k: contains the instances used for training models. We also include for each instance the best solution ever found.
 - benchmarks: contains the Taillard's benchmark (TA), Demirkol's benchmark (DMU), and the validation instances. 
 
+
+## Dataset and benchmark instances
+
+All the instances used for training and testing follow the same structure.
+Here is a small example:
+
+```
+3 2             # Instance shape (num. jobs and num. machines)
+0 4 1 6         # First job
+1 9 0 3         # Second job
+0 4 1 6         # Third job
+39              # Instance upper bound 
+0 4 3           # Sequence of operations on machine 0
+2 1 5           # Sequence of operations on machine 1
+```
+
+The first line gives the number of jobs and machines in the instance. 
+In this example, the instance has 3 jobs and 2 machines. 
+
+Then, follow information about the jobs in the instance. Each job is 
+given as a sequence of pairs (machine index, processing time). 
+For example, the first job starts executing on machine 0 for 4 time units,
+and afterward it goes on machine 1 for 6 time units. The second and third jobs 
+follow the same structure.
+
+After the instance, there is an upper bound (UB) on the optimal solution of 
+the instance. For benchmark instances, we used the best-known UB in the 
+literature, while for dataset instances (dataset5k and benchmarks/validation 
+folders) we used the best UB ever found by our model during the trainings.
+After the UB line, it follows the solution producing that UB value, where 
+rows correspond to machines.
+
+
 ## Requirements
 
 - PyTorch 13.1

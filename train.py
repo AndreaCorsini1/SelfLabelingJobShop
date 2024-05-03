@@ -193,12 +193,8 @@ if __name__ == '__main__':
     ### OPTIMIZER
     optimizer = torch.optim.Adam(list(_enc.parameters()) +
                                  list(_dec.parameters()), lr=args.lr)
-    _scheduler = ReduceLROnPlateau(optimizer,
-                                   mode='min',
-                                   verbose=True,
-                                   factor=0.5,
-                                   patience=5,
-                                   cooldown=5,
+    _scheduler = ReduceLROnPlateau(optimizer, mode='min', verbose=True,
+                                   factor=0.5, patience=5, cooldown=5,
                                    min_lr=0.000001)
     #
     train(_enc, _dec, train_set, val_set,

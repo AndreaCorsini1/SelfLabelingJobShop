@@ -67,12 +67,12 @@ def validation(encoder: torch.nn.Module,
 #
 parser = argparse.ArgumentParser(description='Test Pointer Net')
 parser.add_argument("-model_path", type=str, required=False,
-                    default="./checkpoints/PtrNet-B128.pt",
+                    default="./checkpoints/PtrNet-B256.pt",
                     help="Path to the model.")
 parser.add_argument("-benchmarks", type=list, required=False,
                     default=['DMU', 'TA'],
                     help="Name of the benchmark to use for testing.")
-parser.add_argument("-beta", type=int, default=1, required=False,
+parser.add_argument("-beta", type=int, default=128, required=False,
                     help="Number of sampled solutions for each instance.")
 parser.add_argument("-seed", type=int, default=12345,
                     required=False, help="Random seed.")
@@ -86,7 +86,7 @@ if __name__ == '__main__':
     # Load the model
     print(f"Loading {args.model_path}")
     enc_w, dec_ = torch.load(args.model_path, map_location=dev)
-    enc_ = GATEncoder(15)   # Load weights to avoid bug with new PyG versions
+    enc_ = GATEncoder(15).to(dev)   # Load weights to avoid bug with new PyG
     enc_.load_state_dict(enc_w)
     model_name = args.model_path.rsplit('/', 1)[1].split('.', 1)[0]
 

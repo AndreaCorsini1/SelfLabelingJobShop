@@ -28,7 +28,6 @@ class JobShopStates:
         self.j_ct = None        # Completion time of jobs in the partial sol
         self.j_idx = None       # Index of active operation in jobs
         self.j_st = None
-        self.last_ms = 0        #
         #
         self.m_ct = None        # Completion time of machines in the partial sol
 
@@ -140,7 +139,7 @@ class JobShopStates:
         n_states[..., 9] = mac_ct - self.m_ct.mean(-1, keepdim=True)
         n_states[..., 10] = mac_ct / curr_ms
 
-        return n_states, self.mask.to(torch.float32), self.last_ms - curr_ms
+        return n_states, self.mask.to(torch.float32)
 
     def __call__(self, jobs: torch.Tensor, states: torch.Tensor):
         """
@@ -190,7 +189,6 @@ def sampling(ins: dict,
         device: Either cpu or cuda.
     """
     num_j, num_m = ins['j'], ins['m']
-    num_ops = num_j * num_m
     machines = ins['machines'].view(-1)
     encoder.eval()
     decoder.eval()
@@ -206,8 +204,8 @@ def sampling(ins: dict,
     # Encoding step
     embed = encoder(ins['x'], edge_index=ins['edge_index'])
 
-    # Decoding steps
-    for i in range(num_ops):
+    # Decoding steps, (in the last step, there is only one job to schedule)
+    for i in range(num_j * num_m - 1):
         #
         ops = jsp.ops
         logits = decoder(embed[ops], state) + mask.log()
@@ -225,6 +223,8 @@ def sampling(ins: dict,
         # Update the context of the solutions
         mask = jsp(jobs, state)
 
+    # Schedule last job/operation
+    jsp(mask.float().argmax(-1), state)
     return sols, jsp.makespan
 
 
@@ -243,7 +243,6 @@ def greedy(ins: dict,
         device: Either cpu or cuda.
     """
     num_j, num_m = ins['j'], ins['m']
-    num_ops = num_j * num_m
     machines = ins['machines'].view(-1)
     encoder.eval()
     decoder.eval()
@@ -258,9 +257,9 @@ def greedy(ins: dict,
     # Encoding step
     embed = encoder(ins['x'], edge_index=ins['edge_index'])
 
-    # Decoding steps
-    for i in range(num_ops):
-        #
+    # Decoding steps, (in the last step, there is only one job to schedule)
+    for i in range(num_j * num_m - 1):
+        # Take the embeddings of ready operations and generate probabilities
         ops = jsp.ops
         logits = decoder(embed[ops], state) + mask.log()
         scores = F.softmax(logits, -1)
@@ -277,6 +276,8 @@ def greedy(ins: dict,
         # Update the context of the solutions
         mask = jsp(jobs, state)
 
+    # Schedule last job/operation
+    jsp(mask.float().argmax(-1), state)
     return sols, jsp.makespan
 
 
@@ -295,10 +296,11 @@ def sample_training(ins: dict,
         bs: Batch size (number of parallel solutions to create).
         device: Either cpu or cuda.
     """
-    num_j, num_m = ins['j'], ins['m']
-    num_ops = num_j * num_m
     encoder.train()
     decoder.train()
+    num_j, num_m = ins['j'], ins['m']
+    # We don't need to learn from the last step, everything is masked but a job
+    num_ops = num_j * num_m - 1
 
     # Reserve space for the solution
     trajs = -torch.ones((bs, num_ops), dtype=torch.long, device=device)
@@ -326,6 +328,8 @@ def sample_training(ins: dict,
         trajs[:, i] = jobs
         ptrs[:, i] = logits
         #
-        state, mask, _ = jsp.update(jobs)
+        state, mask = jsp.update(jobs)
 
+    # Schedule last job/operation
+    jsp(mask.float().argmax(-1), state)
     return trajs, ptrs, jsp.makespan

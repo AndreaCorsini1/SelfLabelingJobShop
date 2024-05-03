@@ -200,3 +200,34 @@ def load_dataset(path: str = './dataset/',
         torch.save(instances, c_path)
     print(f"Number of dataset instances = {len(instances)}")
     return instances
+
+
+def load_raw(path: str = './bachmarks/'):
+    """
+    Read raw instances without generating features.
+
+    Args:
+        path: path to the benchmark to load
+    Returns:
+        The benchmark instances.
+    """
+    instances = []
+    for file in os.listdir(path):
+        if file.startswith('.') or file.startswith('cached'):
+            continue
+
+        # Load the instance from the instance.jsp file
+        f_path = os.path.join(path, file)
+        name, num_j, num_m, instance, ms = read_basic(f_path, device='cpu')
+        costs = instance[:, 1::2]
+        machines = instance[:, :-1:2].long()
+
+        # Make the data object of the loaded instance
+        instances.append(dict(
+            name=name, path=f_path,
+            j=num_j, m=num_m, shape=f"{num_j}x{num_m}",
+            costs=costs,  # Rows are jobs
+            machines=machines,  # Rows are jobs
+            makespan=ms  # Optional
+        ))
+    return instances

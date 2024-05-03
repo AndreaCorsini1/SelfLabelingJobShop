@@ -5,9 +5,7 @@ Priority Dispatching Rules:
  - MOR: Most Operations Remaining
 """
 import numpy as np
-import os
 from time import time
-import argparse
 import random
 
 
@@ -157,7 +155,7 @@ class PDR(object):
         return sol, times
 
 
-def solve_instance(ins: dict, pdr: PDR, beta: int = 1):
+def solve_instance(ins: dict, pdr: PDR, beta: int = 1, seed: int = 1234):
     """
     Helper for testing dispatching rules on an instance.
 
@@ -166,6 +164,7 @@ def solve_instance(ins: dict, pdr: PDR, beta: int = 1):
         pdr: Dispatching rule to use.
         beta: Number of randomized solutions to generate. If beta = 1, only a
             single greedy solution is constructed.
+        seed: random seed.
     Returns:
         - The makespan of the best solution.
         - The completion time of operations.
@@ -179,8 +178,8 @@ def solve_instance(ins: dict, pdr: PDR, beta: int = 1):
     best_ms = max(t[-1] for t in times)
     # Generate randomized solution when beta > 1
     if beta > 1:
-        np.random.seed(args.seed)
-        random.seed(args.seed)
+        np.random.seed(seed)
+        random.seed(seed)
         #
         for _ in range(beta - 1):
             sol, times = pdr(ins['j'], ins['m'], costs, machines,
@@ -190,43 +189,3 @@ def solve_instance(ins: dict, pdr: PDR, beta: int = 1):
                 best_ms = ms
     et = time() - st
     return best_ms, et
-
-
-#
-parser = argparse.ArgumentParser(description='Test PDR')
-parser.add_argument("-benchmark", type=str, required=False,
-                    default='TA', help="Either TA or DMU.")
-parser.add_argument("-beta", type=int, default=128, required=False,
-                    help="Number of sampled solutions.")
-parser.add_argument("-seed", type=int, default=12345,
-                    required=False, help="Random seed.")
-args = parser.parse_args()
-
-
-if __name__ == '__main__':
-    import pandas as pd
-    from inout import load_dataset
-    instances = load_dataset(f"benchmarks/{args.benchmark}")
-
-    #
-    pdrs = [
-        PDR(SPT()),
-        PDR(MWR()), PDR(MOR())]
-    results = []
-    for ins in instances:
-        res = {}
-        for pdr in pdrs:
-            pdr_ms, pdr_time = solve_instance(ins, pdr, args.beta)
-            res[f'{pdr.name} MS'] = pdr_ms
-            res[f'{pdr.name} TIME'] = pdr_time
-        #
-        print(ins['name'], res)
-        results.append(res)
-
-    # Save results
-    if not os.path.exists('./output/'):
-        os.makedirs('./output/')
-    df = pd.DataFrame(results,
-                      index=[i['name'] for i in instances]).sort_index()
-    df.to_csv(f"output/pdrs_{args.benchmark}_B{args.beta}.csv",
-              sep=',')

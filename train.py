@@ -1,7 +1,6 @@
 import torch
 import random
 import sampling as stg
-from torch.optim.lr_scheduler import ReduceLROnPlateau
 from PointerNet import GATEncoder, MHADecoder
 from argparse import ArgumentParser
 from inout import load_dataset
@@ -56,11 +55,9 @@ def train(encoder: torch.nn.Module,
           decoder: torch.nn.Module,
           train_set: list,
           val_set: list,
-          opti: torch.optim.Optimizer,
           epochs: int = 50,
           virtual_bs: int = 128,
           num_sols: int = 128,
-          scheduler=None,
           model_path: str = 'checkpoints/PointerNet.pt'):
     """
     Train the Pointer Network.
@@ -70,19 +67,20 @@ def train(encoder: torch.nn.Module,
         decoder: Decoder to train.
         train_set: Training set.
         val_set: Validation set.
-        opti: Optimizer.
         epochs: Number of epochs.
         virtual_bs: Virtual batch size that gives the number of instances
             predicted before back-propagation.
         num_sols: Number of solutions to use in back-propagation.
-        scheduler:
         model_path:
     """
     frac, _best = 1. / virtual_bs, None
     size = len(train_set)
     indices = list(range(size))
-    #
+    ### OPTIMIZER
+    opti = torch.optim.Adam(list(_enc.parameters()) +
+                            list(_dec.parameters()), lr=args.lr)
     c = torch.nn.CrossEntropyLoss(reduction='mean')
+    #
     print("Training ...")
     for epoch in range(epochs):
         losses = AverageMeter()
@@ -121,19 +119,20 @@ def train(encoder: torch.nn.Module,
                     torch.save((encoder.state_dict(), decoder), model_path)
 
         # ...log the running loss
-        avg_gap = gaps.avg
+        avg_loss, avg_gap = losses.avg, gaps.avg
+        logger.train(epoch, avg_loss, avg_gap)
         print(f'\tEPOCH {epoch:02}: avg loss={losses.avg:.4f}')
         print(f"\t\tTrain: AVG Gap={avg_gap:2.3f}")
         print(gaps)
 
         # Test model and save
         val_gap = validation(encoder, decoder, val_set, num_sols=128)
+        logger.validation(val_gap)
         if _best is None or val_gap < _best:
             _best = val_gap
             torch.save((encoder.state_dict(), decoder), model_path)
-        if scheduler is not None:
-            scheduler.step(avg_gap)
-
+        #
+        logger.flush()
 
 #
 parser = ArgumentParser(description='PointerNet arguments for the JSP')
@@ -151,17 +150,19 @@ parser.add_argument("-mem_out", type=int, default=128, required=False,
                     help="Output size of the memory network.")
 parser.add_argument("-clf_hidden", type=int, default=128, required=False,
                     help="Hidden size of the classifier.")
-parser.add_argument("-lr", type=float, default=0.0002, required=False,
+parser.add_argument("-lr", type=float, default=0.00002, required=False,
                     help="Learning rate in the first checkpoint.")
-parser.add_argument("-epochs", type=int, default=50, required=False,
+parser.add_argument("-epochs", type=int, default=20, required=False,
                     help="Number of epochs.")
-parser.add_argument("-batch_size", type=int, default=16, required=False,
+parser.add_argument("-bs", type=int, default=16, required=False,
                     help="Virtual batch size.")
-parser.add_argument("-beta", type=int, default=32, required=False,
+parser.add_argument("-beta", type=int, default=128, required=False,
                     help="Number of sampled solutions.")
 args = parser.parse_args()
 print(args)
-
+#
+run_name = f"PtrNet-BS{args.bs}-B{args.beta}"
+logger = Logger(run_name)
 
 if __name__ == '__main__':
     print(f"Using device: {device}")
@@ -186,21 +187,13 @@ if __name__ == '__main__':
         _enc_w, _dec = torch.load(args.model_path, map_location=device)
         _enc.load_state_dict(_enc_w)
     else:
-        m_path = f"checkpoints/PtrNet-B{args.beta}_1.pt"
+        m_path = f"checkpoints/{run_name}.pt"
     print(_enc)
     print(_dec)
 
-    ### OPTIMIZER
-    optimizer = torch.optim.Adam(list(_enc.parameters()) +
-                                 list(_dec.parameters()), lr=args.lr)
-    _scheduler = ReduceLROnPlateau(optimizer, mode='min', verbose=True,
-                                   factor=0.5, patience=5, cooldown=5,
-                                   min_lr=0.000001)
     #
     train(_enc, _dec, train_set, val_set,
-          optimizer,
           epochs=args.epochs,
-          virtual_bs=args.batch_size,
+          virtual_bs=args.bs,
           num_sols=args.beta,
-          scheduler=_scheduler,
           model_path=m_path)

@@ -20,7 +20,12 @@ All the other files contain helper functions and utilities.
 
 The JSP instances are divided into two folders:
 - dataset5k: contains the instances used for training models. We also include for each instance the best solution ever found.
-- benchmarks: contains the Taillard's benchmark (TA), Demirkol's benchmark (DMU), and the validation instances. 
+- benchmarks: contains the Lawrence's benchmark (LA), Taillard's benchmark (TA), Demirkol's benchmark (DMU), and the validation instances. 
+
+For the Shifting Bottleneck Heuristic and the INSertion Algorithm refer to the 
+side project [ShiftingBottleneck](https://github.com/AndreaCorsini1/ShiftingBottleneck).
+
+> The extended results of algorithms are reported in the output/Results.xlsx file.
 
 
 ## Dataset and benchmark instances
@@ -59,10 +64,11 @@ rows correspond to machines.
 
 - PyTorch 13.1
 - PyTorch Geometric 2.2 (check the PyG site for installation instructions)
-- Tdqm
-- Gurobipy
+- Tqdm
+- Gurobipy (requires an Academic/Professional license)
 - Pandas
 - Gym (necessary for running L2D) 
+- ORTools 9.8.3296
 
 It should also work with newer versions of PyTorch and PyTorch Geometric.  
 

@@ -60,17 +60,17 @@ parser.add_argument("-model_path", type=str, required=False,
                     default="./checkpoints/PtrNet-B256.pt",
                     help="Path to the model.")
 parser.add_argument("-benchmark", type=str, required=False,
-                    default='TA', help="Name of the benchmark to use for testing.")
+                    default='TA', help="Name of the benchmark for testing.")
 parser.add_argument("-beta", type=int, default=128, required=False,
                     help="Number of sampled solutions for each instance.")
 parser.add_argument("-seed", type=int, default=12345,
                     required=False, help="Random seed.")
-
+args = parser.parse_args()
+print(args)
 
 if __name__ == '__main__':
     from PointerNet import GATEncoder
-    print(f"Using on {dev}...")
-    args = parser.parse_args()
+    print(f"Using {dev}...")
 
     # Load the model
     print(f"Loading {args.model_path}")
@@ -86,7 +86,6 @@ if __name__ == '__main__':
     out_file = f'output/{m_name}_{args.benchmark}-B{args.beta}_{args.seed}.csv'
 
     #
-    print('Testing ...')
     gaps = ObjMeter()
     for file in os.listdir(path):
         if file.startswith('.') or file.startswith('cached'):

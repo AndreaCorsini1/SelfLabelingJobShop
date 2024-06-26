@@ -177,8 +177,8 @@ if __name__ == '__main__':
 
     # Save results
     print(result)
-    if not os.path.exists('./output/'):
-        os.makedirs('./output/')
+    if not os.path.exists('./output/L2D'):
+        os.makedirs('./output/L2D')
     out_file = f'./output/L2D/{configs.benchmark}_' \
                f'{N_JOBS_N}x{N_MACHINES_N}_B{configs.beta}.csv'
     pd.DataFrame(result).to_csv(out_file, index=False, sep=',')
